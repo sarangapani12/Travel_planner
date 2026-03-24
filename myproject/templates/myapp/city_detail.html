@@ -1,0 +1,398 @@
+{% extends 'myapp/base.html' %}
+{% block title %}{{ city.name }} — WanderMap{% endblock %}
+
+{% block extra_css %}
+<style>
+  .city-hero {
+    height: 480px;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+  .city-hero img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.1);
+    transition: transform 8s ease-out;
+  }
+  .city-hero img.loaded { transform: scale(1); }
+  .city-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(10,30,15,0.85) 0%, rgba(0,0,0,0.1) 60%);
+  }
+  .city-hero-content {
+    position: relative;
+    z-index: 1;
+    color: white;
+    padding: 2.5rem;
+    width: 100%;
+  }
+  .city-hero-content small { opacity: 0.8; font-size: 1rem; display: block; margin-bottom: 0.4rem; }
+  .city-hero-content h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 5vw, 3.8rem); margin-bottom: 0.5rem; }
+  .city-hero-content p { max-width: 600px; opacity: 0.88; line-height: 1.6; font-size: 1rem; }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 2rem 0 1rem;
+  }
+  .filter-btn {
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 1.5px solid var(--mint);
+    background: white;
+    font-size: 0.88rem;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--forest);
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .filter-btn.active, .filter-btn:hover {
+    background: var(--forest);
+    color: var(--mint);
+    border-color: var(--forest);
+  }
+
+  .places-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+  .place-card {
+    background: white;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 2px 10px rgba(28,58,42,0.07);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: block;
+    border: 1px solid rgba(200,223,201,0.4);
+  }
+  .place-card:hover { transform: translateY(-5px); box-shadow: 0 12px 30px rgba(28,58,42,0.13); }
+  .place-card-img { height: 190px; overflow: hidden; background: var(--moss); position: relative; }
+  .place-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.35s; }
+  .place-card:hover .place-card-img img { transform: scale(1.06); }
+  .place-card-body { padding: 1rem 1.2rem 1.2rem; }
+  .place-card-body h3 { font-family: 'Playfair Display', serif; font-size: 1.15rem; margin-bottom: 0.35rem; color: var(--forest); }
+  .place-card-body p { color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+  .place-meta { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+  .category-pill { font-size: 0.78rem; padding: 3px 10px; background: var(--mint); border-radius: 20px; color: var(--forest); }
+  .rating { font-size: 0.85rem; color: #E8A020; font-weight: 500; }
+
+  /* ── Budget Estimator ── */
+  .budget-section {
+    background: white;
+    border-radius: var(--card-radius);
+    padding: 2rem;
+    margin: 2.5rem 0;
+    border: 1px solid rgba(200,223,201,0.5);
+    box-shadow: 0 2px 12px rgba(28,58,42,0.06);
+  }
+  .budget-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    color: var(--forest);
+    margin-bottom: 0.3rem;
+  }
+  .budget-subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.8rem; }
+  .budget-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.8rem;
+  }
+  .budget-item {
+    background: var(--cream);
+    border-radius: 12px;
+    padding: 1.2rem;
+    text-align: center;
+    border: 1px solid rgba(200,223,201,0.4);
+  }
+  .budget-item .icon { font-size: 1.8rem; display: block; margin-bottom: 0.4rem; }
+  .budget-item .label { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
+  .budget-item .amount { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--forest); font-weight: 700; }
+  .budget-total {
+    background: var(--forest);
+    color: var(--mint);
+    border-radius: 12px;
+    padding: 1.2rem 1.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.8rem;
+  }
+  .budget-total .total-label { font-size: 0.95rem; opacity: 0.85; }
+  .budget-total .total-amount { font-family: 'Playfair Display', serif; font-size: 1.4rem; }
+  .hotel-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  @media (max-width: 600px) { .hotel-grid { grid-template-columns: 1fr; } }
+  .hotel-tier {
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    border: 1.5px solid;
+  }
+  .hotel-tier.budget-tier { border-color: var(--sage); background: #f0f7f0; }
+  .hotel-tier.mid-tier { border-color: var(--earth); background: #fdf6ec; }
+  .hotel-tier.luxury-tier { border-color: #9B7EC8; background: #f5f0ff; }
+  .hotel-tier .tier-icon { font-size: 1.5rem; display: block; margin-bottom: 0.3rem; }
+  .hotel-tier .tier-name { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
+  .hotel-tier .tier-price { font-family: 'Playfair Display', serif; font-size: 0.95rem; font-weight: 700; color: var(--forest); }
+  .hotel-tier .per-night { font-size: 0.75rem; color: var(--muted); }
+
+  /* ── Stays Section ── */
+  .stays-section { margin: 2.5rem 0; }
+  .section-heading {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    color: var(--forest);
+    margin-bottom: 0.4rem;
+  }
+  .stays-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.2rem;
+    margin-top: 1.2rem;
+  }
+  .stay-card {
+    background: white;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    border: 1px solid rgba(200,223,201,0.4);
+    box-shadow: 0 2px 8px rgba(28,58,42,0.06);
+  }
+  .stay-card-body { padding: 1rem 1.2rem 1.2rem; }
+  .stay-card-body h4 { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--forest); margin-bottom: 0.3rem; }
+  .stay-card-body .stay-type { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+  .stay-card-body .stay-address { font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+  .stay-map-link {
+    display: inline-block;
+    margin-top: 0.7rem;
+    font-size: 0.82rem;
+    color: var(--moss);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .stay-map-link:hover { text-decoration: underline; }
+  #stays-loader {
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+    grid-column: 1/-1;
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #e8f0e9 25%, #d0e4d2 50%, #e8f0e9 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 8px;
+  }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .skeleton-card { background: white; border-radius: var(--card-radius); overflow: hidden; border: 1px solid rgba(200,223,201,0.4); padding: 1.2rem; }
+  .sk-line { height: 14px; margin-bottom: 10px; border-radius: 4px; }
+  .sk-title { width: 70%; height: 18px; }
+  .sk-short { width: 40%; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="city-hero">
+  {% if city.cover_image %}
+  <img src="{{ city.cover_image }}" alt="{{ city.name }}" id="hero-img">
+  {% endif %}
+  <div class="city-hero-overlay"></div>
+  <div class="city-hero-content">
+    <small>{{ city.country.flag_emoji }} {{ city.country.name }}</small>
+    <h1>{{ city.name }}</h1>
+    <p>{{ city.description }}</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Category filter -->
+  <div class="filters">
+    <a href="?category=" class="filter-btn {% if not selected_category %}active{% endif %}">🌐 All</a>
+    {% for cat in categories %}
+    <a href="?category={{ cat.id }}" class="filter-btn {% if selected_category == cat.id|stringformat:'s' %}active{% endif %}">
+      {{ cat.icon }} {{ cat.name }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <p style="color:var(--muted); margin-bottom:1.5rem;">{{ places|length }} place{{ places|length|pluralize }} to explore</p>
+
+  <!-- Places grid -->
+  <div class="places-grid">
+    {% for place in places %}
+    <a href="{% url 'place_detail' place.slug %}" class="place-card">
+      <div class="place-card-img">
+        {% if place.cover_image %}<img src="{{ place.cover_image }}" alt="{{ place.name }}">{% endif %}
+      </div>
+      <div class="place-card-body">
+        <div class="place-meta">
+          {% if place.category %}<span class="category-pill">{{ place.category.icon }} {{ place.category.name }}</span>{% endif %}
+          <span class="rating">★ {{ place.rating }}</span>
+        </div>
+        <h3>{{ place.name }}</h3>
+        <p>{{ place.short_description }}</p>
+      </div>
+    </a>
+    {% empty %}
+    <p style="color:var(--muted); grid-column:1/-1;">No places found for this filter.</p>
+    {% endfor %}
+  </div>
+
+  <!-- Budget Estimator -->
+  <div class="budget-section">
+    <h2 class="budget-title">💰 Daily Budget Estimator</h2>
+    <p class="budget-subtitle">Estimated costs per person per day in {{ city.name }}</p>
+
+    <div class="budget-grid">
+      <div class="budget-item">
+        <span class="icon">🍽</span>
+        <div class="label">Food & Drinks</div>
+        <div class="amount">₹{{ budget.food_min }} – ₹{{ budget.food_max }}</div>
+      </div>
+      <div class="budget-item">
+        <span class="icon">🚗</span>
+        <div class="label">Local Transport</div>
+        <div class="amount">₹{{ budget.transport_min }} – ₹{{ budget.transport_max }}</div>
+      </div>
+      <div class="budget-item">
+        <span class="icon">🎟</span>
+        <div class="label">Entry Fees</div>
+        <div class="amount">₹{{ budget.entry_min }} – ₹{{ budget.entry_max }}</div>
+      </div>
+    </div>
+
+    <div class="budget-total">
+      <span class="total-label">💡 Estimated total per day</span>
+      <span class="total-amount">₹{{ total_min }} – ₹{{ total_max }}</span>
+    </div>
+
+    <h3 style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--forest); margin-bottom:1rem;">🏨 Where to Stay</h3>
+    <div class="hotel-grid">
+      <div class="hotel-tier budget-tier">
+        <span class="tier-icon">🛏</span>
+        <div class="tier-name">Budget</div>
+        <div class="tier-price">{{ budget.hotel_budget }}</div>
+        <div class="per-night">per night</div>
+      </div>
+      <div class="hotel-tier mid-tier">
+        <span class="tier-icon">🏨</span>
+        <div class="tier-name">Mid-range</div>
+        <div class="tier-price">{{ budget.hotel_mid }}</div>
+        <div class="per-night">per night</div>
+      </div>
+      <div class="hotel-tier luxury-tier">
+        <span class="tier-icon">✨</span>
+        <div class="tier-name">Luxury</div>
+        <div class="tier-price">{{ budget.hotel_luxury }}</div>
+        <div class="per-night">per night</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nearby Stays -->
+  <div class="stays-section">
+    <h2 class="section-heading">🏨 Nearby Hotels & Stays</h2>
+    <p style="color:var(--muted); font-size:0.9rem;">Real hotels near {{ city.name }} fetched from OpenStreetMap</p>
+    <div class="stays-grid" id="stays-grid">
+      <!-- Skeleton loaders -->
+      {% for i in "123456" %}
+      <div class="skeleton-card" id="sk-{{ i }}">
+        <div class="skeleton sk-line sk-title"></div>
+        <div class="skeleton sk-line sk-short" style="margin-top:6px"></div>
+        <div class="skeleton sk-line" style="width:90%; margin-top:14px"></div>
+        <div class="skeleton sk-line sk-short"></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Parallax hero
+  const heroImg = document.getElementById('hero-img');
+  if (heroImg) {
+    heroImg.onload = () => heroImg.classList.add('loaded');
+    window.addEventListener('scroll', () => {
+      const offset = window.scrollY;
+      heroImg.style.transform = `scale(1) translateY(${offset * 0.3}px)`;
+    });
+  }
+
+  // Fetch real hotels from OpenStreetMap Overpass API
+  const lat = {{ city.latitude|default:0 }};
+  const lon = {{ city.longitude|default:0 }};
+
+  async function fetchStays() {
+    const query = `
+      [out:json][timeout:25];
+      (
+        node["tourism"="hotel"](around:15000,${lat},${lon});
+        node["tourism"="hostel"](around:15000,${lat},${lon});
+        node["tourism"="guest_house"](around:15000,${lat},${lon});
+        node["tourism"="motel"](around:15000,${lat},${lon});
+      );
+      out body 12;
+    `;
+    try {
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query
+      });
+      const data = await res.json();
+      renderStays(data.elements);
+    } catch (e) {
+      document.getElementById('stays-grid').innerHTML =
+        '<p style="color:var(--muted);grid-column:1/-1;padding:2rem;text-align:center;">Could not load nearby stays. Please check your connection.</p>';
+    }
+  }
+
+  function renderStays(hotels) {
+    const grid = document.getElementById('stays-grid');
+    if (!hotels || hotels.length === 0) {
+      grid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;padding:2rem;text-align:center;">No hotels found nearby. Try visiting the admin to check city coordinates.</p>';
+      return;
+    }
+    const typeLabels = { hotel: '🏨 Hotel', hostel: '🛏 Hostel', guest_house: '🏡 Guest House', motel: '🚗 Motel' };
+    grid.innerHTML = hotels.map(h => {
+      const name = h.tags.name || 'Unnamed Stay';
+      const type = typeLabels[h.tags.tourism] || '🏨 Hotel';
+      const address = [h.tags['addr:street'], h.tags['addr:city']].filter(Boolean).join(', ') || 'Address not listed';
+      const phone = h.tags.phone || h.tags['contact:phone'] || '';
+      const website = h.tags.website || h.tags['contact:website'] || '';
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lon}`;
+      return `
+        <div class="stay-card">
+          <div class="stay-card-body">
+            <h4>${name}</h4>
+            <div class="stay-type">${type}</div>
+            <div class="stay-address">📍 ${address}</div>
+            ${phone ? `<div class="stay-address" style="margin-top:4px">📞 ${phone}</div>` : ''}
+            ${website ? `<div style="margin-top:4px"><a href="${website}" target="_blank" class="stay-map-link">🌐 Visit website</a></div>` : ''}
+            <a href="${mapsUrl}" target="_blank" class="stay-map-link">📌 View on Google Maps →</a>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  fetchStays();
+</script>
+{% endblock %}

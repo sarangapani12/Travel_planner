@@ -1,0 +1,115 @@
+{% extends 'myapp/base.html' %}
+{% block title %}{{ place.name }} — WanderMap{% endblock %}
+
+{% block extra_css %}
+<style>
+  .place-hero { height: 500px; position: relative; }
+  .place-hero img { width: 100%; height: 100%; object-fit: cover; }
+  .place-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 55%); }
+  .place-hero-content { position: absolute; bottom: 0; left: 0; right: 0; padding: 2rem 2.5rem; color: white; }
+  .place-hero-content h1 { font-family: 'Playfair Display', serif; font-size: clamp(2rem, 4vw, 3.2rem); }
+  .breadcrumb { font-size: 0.88rem; opacity: 0.8; margin-bottom: 0.5rem; }
+  .breadcrumb a { color: white; text-decoration: none; }
+  .content-layout { display: grid; grid-template-columns: 1fr 320px; gap: 2rem; margin-top: 2rem; }
+  @media (max-width: 768px) { .content-layout { grid-template-columns: 1fr; } }
+  .description { font-size: 1.05rem; line-height: 1.8; color: #333; }
+  .info-card { background: white; border-radius: var(--card-radius); padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.07); height: fit-content; }
+  .info-card h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 1rem; }
+  .info-row { display: flex; gap: 0.75rem; margin-bottom: 0.9rem; align-items: flex-start; font-size: 0.9rem; }
+  .info-row span:first-child { font-size: 1.2rem; flex-shrink: 0; }
+  .info-row strong { display: block; color: var(--muted); font-size: 0.78rem; margin-bottom: 2px; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 2rem; }
+  .gallery img { width: 100%; height: 200px; object-fit: cover; border-radius: 12px; cursor: pointer; transition: transform 0.2s; }
+  .gallery img:hover { transform: scale(1.02); }
+  .section-heading { font-family: 'Playfair Display', serif; font-size: 1.6rem; margin: 2.5rem 0 1rem; }
+  .tips-box { background: #FFF8F0; border-left: 4px solid var(--accent); border-radius: 8px; padding: 1.2rem 1.5rem; margin-top: 1.5rem; }
+  .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  @media (max-width: 600px) { .related-grid { grid-template-columns: 1fr; } }
+  .mini-card { text-decoration: none; color: inherit; }
+  .mini-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; margin-bottom: 0.5rem; }
+  .mini-card h4 { font-size: 0.95rem; font-weight: 500; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="place-hero">
+  {% if place.cover_image %}<img src="{{ place.cover_image }}" alt="{{ place.name }}">{% endif %}
+  <div class="place-hero-overlay"></div>
+  <div class="place-hero-content">
+    <div class="breadcrumb">
+      <a href="{% url 'home' %}">Home</a> › 
+      <a href="{% url 'city_detail' place.city.slug %}">{{ place.city.name }}</a> › 
+      {{ place.name }}
+    </div>
+    <h1>{{ place.name }}</h1>
+    <div style="display:flex; gap:0.75rem; align-items:center; margin-top:0.5rem;">
+      {% if place.category %}
+        <span class="badge">{{ place.category.icon }} {{ place.category.name }}</span>
+      {% endif %}
+      <span style="color:#F59E0B; font-size:1rem;">★ {{ place.rating }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="content-layout">
+    <div>
+      <p class="description">{{ place.full_description }}</p>
+
+      {% if place.tips %}
+      <div class="tips-box">
+        <strong style="display:block; margin-bottom:0.5rem;">💡 Traveller Tips</strong>
+        <p style="font-size:0.95rem; line-height:1.7;">{{ place.tips }}</p>
+      </div>
+      {% endif %}
+
+      {% if images %}
+      <h2 class="section-heading">Photo Gallery</h2>
+      <div class="gallery">
+        {% for img in images %}
+          <img src="{{ img.url }}" alt="{{ img.caption }}" title="{{ img.caption }}">
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <aside>
+      <div class="info-card">
+        <h3>Quick Info</h3>
+        {% if place.best_time_to_visit %}
+        <div class="info-row">
+          <span>🗓</span>
+          <div><strong>Best time to visit</strong>{{ place.best_time_to_visit }}</div>
+        </div>
+        {% endif %}
+        {% if place.entry_fee %}
+        <div class="info-row">
+          <span>🎟</span>
+          <div><strong>Entry fee</strong>{{ place.entry_fee }}</div>
+        </div>
+        {% endif %}
+        <div class="info-row">
+          <span>📍</span>
+          <div><strong>City</strong>{{ place.city.name }}, {{ place.city.country.name }}</div>
+        </div>
+        <a href="{% url 'city_detail' place.city.slug %}" class="btn btn-outline" style="width:100%; text-align:center; margin-top:1rem;">
+          ← Back to {{ place.city.name }}
+        </a>
+      </div>
+    </aside>
+  </div>
+
+  {% if related %}
+  <h2 class="section-heading">More in {{ place.city.name }}</h2>
+  <div class="related-grid">
+    {% for r in related %}
+    <a href="{% url 'place_detail' r.slug %}" class="mini-card">
+      {% if r.cover_image %}<img src="{{ r.cover_image }}" alt="{{ r.name }}">{% endif %}
+      <h4>{{ r.name }}</h4>
+      <p style="font-size:0.82rem; color:var(--muted);">{{ r.short_description|truncatechars:60 }}</p>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,306 @@
+{% extends 'myapp/base.html' %}
+{% block title %}WanderMap — Explore the World{% endblock %}
+
+{% block extra_css %}
+<style>
+  body {
+    background: var(--cream);
+  }
+  .page-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(to bottom, rgba(28,58,42,0.6) 0%, rgba(244,240,230,0.95) 50%),
+      url('https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1600') center/cover no-repeat fixed;
+  }
+  .hero {
+    text-align: center;
+    padding: 6rem 1rem 4rem;
+    position: relative;
+    z-index: 1;
+  }
+  .hero-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(8px);
+    color: white;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.8rem, 6vw, 5rem);
+    line-height: 1.1;
+    margin-bottom: 1rem;
+    color: white;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+  }
+  .hero h1 span { color: #A8D5A2; }
+  .hero p {
+    color: rgba(255,255,255,0.88);
+    font-size: 1.1rem;
+    max-width: 500px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+  .search-bar {
+    display: flex;
+    gap: 0.5rem;
+    max-width: 640px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .search-bar input,
+  .search-bar select {
+    flex: 1;
+    min-width: 180px;
+    padding: 14px 18px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    background: rgba(255,255,255,0.96);
+    outline: none;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--forest);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    transition: box-shadow 0.2s;
+  }
+  .search-bar input:focus,
+  .search-bar select:focus {
+    box-shadow: 0 4px 28px rgba(0,0,0,0.25);
+  }
+  .search-bar button {
+    padding: 14px 28px;
+    font-size: 1rem;
+    background: var(--moss);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .search-bar button:hover { transform: translateY(-1px); opacity: 0.9; }
+  .container { position: relative; z-index: 1; }
+  .stats-bar {
+    display: flex;
+    gap: 2.5rem;
+    justify-content: center;
+    margin: 3rem 0 1rem;
+    flex-wrap: wrap;
+  }
+  .stat { text-align: center; }
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    color: var(--moss);
+    display: block;
+  }
+  .stat-label { font-size: 0.85rem; color: var(--muted); }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    color: var(--forest);
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 2rem 0 1.5rem;
+  }
+  .divider::before,
+  .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--mint);
+  }
+  .cities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.8rem;
+    margin-top: 1.5rem;
+    margin-bottom: 3rem;
+  }
+  .city-card {
+    background: white;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    box-shadow: 0 2px 12px rgba(28,58,42,0.08);
+    transition: transform 0.25s, box-shadow 0.25s;
+    border: 1px solid rgba(200,223,201,0.5);
+  }
+  .city-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 40px rgba(28,58,42,0.15);
+  }
+  .city-card-img {
+    height: 210px;
+    position: relative;
+    overflow: hidden;
+    background: var(--moss);
+  }
+  .city-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s;
+  }
+  .city-card:hover .city-card-img img { transform: scale(1.06); }
+  .country-tag {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(28,58,42,0.75);
+    color: var(--mint);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    backdrop-filter: blur(6px);
+  }
+  .places-badge {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: var(--sun);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+  .city-card-body { padding: 1.3rem; }
+  .city-card-body h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem;
+    margin-bottom: 0.4rem;
+    color: var(--forest);
+  }
+  .city-card-body p {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .city-card-footer {
+    padding: 0.8rem 1.3rem 1.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(200,223,201,0.4);
+    margin-top: 0.5rem;
+  }
+  .explore-link { color: var(--moss); font-weight: 500; font-size: 0.9rem; }
+  .no-results {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--muted);
+    grid-column: 1 / -1;
+  }
+  .no-results h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    margin-bottom: 0.6rem;
+    color: var(--forest);
+  }
+  .no-results p { margin-bottom: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-bg"></div>
+
+<div class="hero">
+  <span class="hero-tag">🌍 Your Travel Companion</span>
+  <h1>Discover Your Next<br><span>Adventure</span></h1>
+  <p>Explore handpicked destinations, hidden gems, and must-see places across the most beautiful cities in the world.</p>
+  <form method="GET" action="{% url 'home' %}" class="search-bar">
+    <input type="text" name="q" placeholder="🔍 Search cities..." value="{{ query }}">
+    <select name="country">
+      <option value="">🌿 All countries</option>
+      {% for country in countries %}
+        <option value="{{ country.id }}"
+          {% if selected_country == country.id|stringformat:"s" %}selected{% endif %}>
+          {{ country.flag_emoji }} {{ country.name }}
+        </option>
+      {% endfor %}
+    </select>
+    <button type="submit">Explore</button>
+  </form>   
+  <div style="margin-top: 1rem;">
+    <a href="{% url 'random_destination' %}" class="btn" style="background:rgba(255,255,255,0.15); color:white; border:1.5px solid rgba(255,255,255,0.4); backdrop-filter:blur(8px); font-size:0.95rem;">
+      🎲 Surprise Me — Random Destination
+    </a>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-num">{{ cities|length }}</span>
+      <span class="stat-label">Cities</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">🌿</span>
+      <span class="stat-label">Nature First</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">∞</span>
+      <span class="stat-label">Memories</span>
+    </div>
+  </div>
+
+  <div class="divider">
+    <span class="section-title">
+      {% if query %}
+        Results for "{{ query }}"
+      {% else %}
+        Popular Destinations
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="cities-grid">
+    {% for city in cities %}
+    <a href="{% url 'city_detail' city.slug %}" class="city-card">
+      <div class="city-card-img">
+        {% if city.cover_image %}
+          <img src="{{ city.cover_image }}" alt="{{ city.name }}">
+        {% endif %}
+        <span class="country-tag">{{ city.country.flag_emoji }} {{ city.country.name }}</span>
+        <span class="places-badge">{{ city.places.count }} places</span>
+      </div>
+      <div class="city-card-body">
+        <h3>{{ city.name }}</h3>
+        <p>{{ city.description }}</p>
+      </div>
+      <div class="city-card-footer">
+        <span style="font-size:0.85rem; color:var(--muted);">
+          {{ city.places.count }} place{{ city.places.count|pluralize }} to explore
+        </span>
+        <span class="explore-link">Explore →</span>
+      </div>
+    </a>
+    {% empty %}
+    <div class="no-results">
+      <h3>No cities found 🌿</h3>
+      <p>Try searching for Mumbai, Jaipur, Kerala or Varanasi</p>
+      <a href="{% url 'home' %}" class="btn btn-primary">Clear search</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

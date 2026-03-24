@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}WanderMap{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --forest: #1C3A2A;
+      --moss: #2D5A3D;
+      --sage: #7A9E7E;
+      --mint: #C8DFC9;
+      --cream: #F4F0E6;
+      --earth: #8B6914;
+      --bark: #5C3D1E;
+      --sun: #E8A020;
+      --white: #FFFFFF;
+      --muted: #5A6B5E;
+      --card-radius: 16px;
+    }
+
+    /* ── Page transition ── */
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: var(--cream);
+      color: var(--forest);
+      min-height: 100vh;
+      opacity: 0;
+      animation: fadeInPage 0.45s ease forwards;
+    }
+    @keyframes fadeInPage {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .page-exit {
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--forest);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 3px solid var(--moss);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    nav a.brand {
+      color: var(--mint);
+      text-decoration: none;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+    }
+    nav a.brand span { color: var(--sun); }
+    nav a.nav-link {
+      color: var(--mint);
+      text-decoration: none;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+    nav a.nav-link:hover { opacity: 1; }
+
+    /* ── Layout ── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-block;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: transform 0.15s, opacity 0.15s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .btn:hover { transform: translateY(-1px); opacity: 0.9; }
+    .btn-primary { background: var(--moss); color: white; }
+    .btn-outline { background: transparent; border: 1.5px solid var(--forest); color: var(--forest); }
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      background: var(--moss);
+      color: var(--mint);
+    }
+
+    /* ── Back to top button ── */
+    #back-to-top {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      width: 48px;
+      height: 48px;
+      background: var(--forest);
+      color: var(--mint);
+      border: none;
+      border-radius: 50%;
+      font-size: 1.3rem;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 999;
+    }
+    #back-to-top.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #back-to-top:hover {
+      background: var(--moss);
+      transform: translateY(-3px);
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--forest);
+      color: var(--mint);
+      text-align: center;
+      padding: 2rem;
+      margin-top: 4rem;
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <nav>
+    <a href="{% url 'home' %}" class="brand">Wander<span>Map</span></a>
+    <a href="{% url 'home' %}" class="nav-link">🌿 Explore Cities</a>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  <footer>
+    <p>🌿 WanderMap — Explore the world, one city at a time.</p>
+  </footer>
+
+  <!-- Back to top button -->
+  <button id="back-to-top" title="Back to top">↑</button>
+
+  <script>
+    // ── Page fade-out on navigation ──
+    document.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto') || this.target === '_blank') return;
+        e.preventDefault();
+        document.body.classList.add('page-exit');
+        setTimeout(() => { window.location.href = href; }, 280);
+      });
+    });
+
+    // ── Back to top ──
+    const backToTop = document.getElementById('back-to-top');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 400) {
+        backToTop.classList.add('visible');
+      } else {
+        backToTop.classList.remove('visible');
+      }
+    });
+    backToTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
